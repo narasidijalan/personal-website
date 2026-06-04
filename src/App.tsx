@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import {
   Sun, Moon, Menu, X, Github, Linkedin, Mail, MessageCircle,
-  MapPin, Calendar, ExternalLink, ArrowRight, Code2, Briefcase,
-  GraduationCap, User, FolderOpen, ChevronDown, Loader2, AlertCircle
+  MapPin, Calendar, ArrowRight, Briefcase, GraduationCap, Award,
+  User, ChevronDown, Loader2, AlertCircle
 } from 'lucide-react';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -18,6 +18,15 @@ interface Skill {
   name: string;
   level: string;
   years: number;
+}
+
+interface EducationItem {
+  jenis: string;
+  jurusan: string;
+  instansi: string;
+  tahunMulai: string;
+  tahunAkhir: string;
+  deskripsi: string;
 }
 
 // ─── CSV Parser ───────────────────────────────────────────────────────────────
@@ -88,6 +97,20 @@ function parseSkillCSV(csv: string): Skill[] {
   }));
 }
 
+function parseEducationCSV(csv: string): EducationItem[] {
+  const rows = parseCSV(csv);
+  if (rows.length < 2) return [];
+
+  return rows.slice(1).map(row => ({
+    jenis: row[0] || '',
+    jurusan: row[1] || '',
+    instansi: row[2] || '',
+    tahunMulai: row[3] || '',
+    tahunAkhir: row[4] || '',
+    deskripsi: row[5] || '',
+  }));
+}
+
 // ─── Data URLs ───────────────────────────────────────────────────────────────
 
 const EXP_URL =
@@ -96,121 +119,17 @@ const EXP_URL =
 const SKILL_URL =
   'https://docs.google.com/spreadsheets/d/e/2PACX-1vS4aX09mtmA80OArmrCncFwxAd3uFucB9yLoDbGjm-NfqxTi76YGqs1JQN5aI4Wl2DiECybcSw9Ozqj/pub?gid=500471126&single=true&output=csv';
 
+const EDU_URL =
+  'https://docs.google.com/spreadsheets/d/e/2PACX-1vS4aX09mtmA80OArmrCncFwxAd3uFucB9yLoDbGjm-NfqxTi76YGqs1JQN5aI4Wl2DiECybcSw9Ozqj/pub?gid=643928211&single=true&output=csv';
+
 // ─── Nav ─────────────────────────────────────────────────────────────────────
 
 const NAV_LINKS = [
   { href: '#home', label: 'Home' },
   { href: '#bio', label: 'Bio' },
   { href: '#pengalaman', label: 'Pengalaman' },
-  { href: '#project', label: 'Project' },
   { href: '#pendidikan', label: 'Pendidikan' },
-  { href: '#portofolio', label: 'Portofolio' },
   { href: '#kontak', label: 'Kontak' },
-];
-
-// ─── Static Data (non-CSV) ────────────────────────────────────────────────────
-
-const PROJECTS = [
-  {
-    title: 'NusaPay Gateway',
-    description: 'Platform pembayaran terintegrasi multi-bank untuk UMKM Indonesia dengan dukungan QRIS, VA, dan transfer antar bank secara real-time.',
-    tags: ['Go', 'PostgreSQL', 'React', 'Redis', 'Docker'],
-    link: '#',
-  },
-  {
-    title: 'CloudMonitor Pro',
-    description: 'Dashboard observability untuk infrastruktur cloud dengan alerting otomatis, visualisasi metrik, dan laporan performa mingguan.',
-    tags: ['TypeScript', 'Next.js', 'ClickHouse', 'Grafana'],
-    link: '#',
-  },
-  {
-    title: 'EduConnect Platform',
-    description: 'LMS open-source untuk sekolah menengah dengan fitur kelas virtual, penilaian otomatis, dan analitik belajar siswa.',
-    tags: ['React', 'Node.js', 'MongoDB', 'Socket.io'],
-    link: '#',
-  },
-  {
-    title: 'HarvestAI',
-    description: 'Aplikasi prediksi hasil pertanian berbasis machine learning yang membantu petani mengoptimalkan waktu panen.',
-    tags: ['Python', 'FastAPI', 'TensorFlow', 'React Native'],
-    link: '#',
-  },
-  {
-    title: 'LogiTrack',
-    description: 'Sistem manajemen logistik real-time dengan fitur GPS tracking, rute optimal, dan laporan pengiriman otomatis.',
-    tags: ['Flutter', 'Go', 'PostgreSQL', 'Google Maps API'],
-    link: '#',
-  },
-  {
-    title: 'OpenCMS',
-    description: 'Content management system headless berbasis API-first dengan editor blok visual yang fleksibel dan plugin marketplace.',
-    tags: ['TypeScript', 'Nest.js', 'GraphQL', 'Vue 3'],
-    link: '#',
-  },
-];
-
-const EDUCATION = [
-  {
-    institution: 'Institut Teknologi Bandung',
-    degree: 'S1 Teknik Informatika',
-    period: '2014 – 2018',
-    description: 'Lulus dengan predikat Cumlaude. Fokus pada rekayasa perangkat lunak, algoritma, dan sistem terdistribusi.',
-    icon: GraduationCap,
-  },
-  {
-    institution: 'Google Cloud Professional',
-    degree: 'Cloud Architect Certification',
-    period: '2023',
-    description: 'Sertifikasi arsitektur cloud profesional mencakup desain sistem, keamanan, dan optimasi biaya infrastruktur GCP.',
-    icon: Code2,
-  },
-  {
-    institution: 'AWS Certified',
-    degree: 'Solutions Architect – Associate',
-    period: '2022',
-    description: 'Sertifikasi solusi arsitektur AWS mencakup EC2, RDS, Lambda, S3, dan jaringan VPC.',
-    icon: Code2,
-  },
-  {
-    institution: 'Meta (Facebook)',
-    degree: 'Frontend Developer Professional Certificate',
-    period: '2021',
-    description: 'Program intensif 9 kursus mencakup React, UX design, version control, dan pengembangan aplikasi responsif.',
-    icon: Code2,
-  },
-];
-
-const PORTFOLIO_ITEMS = [
-  {
-    title: 'NusaPay Dashboard',
-    category: 'Web App',
-    image: 'https://images.pexels.com/photos/265087/pexels-photo-265087.jpeg?auto=compress&cs=tinysrgb&w=800',
-  },
-  {
-    title: 'EduConnect Mobile',
-    category: 'Mobile App',
-    image: 'https://images.pexels.com/photos/1181671/pexels-photo-1181671.jpeg?auto=compress&cs=tinysrgb&w=800',
-  },
-  {
-    title: 'CloudMonitor UI',
-    category: 'Dashboard',
-    image: 'https://images.pexels.com/photos/577585/pexels-photo-577585.jpeg?auto=compress&cs=tinysrgb&w=800',
-  },
-  {
-    title: 'HarvestAI Interface',
-    category: 'AI Product',
-    image: 'https://images.pexels.com/photos/2132180/pexels-photo-2132180.jpeg?auto=compress&cs=tinysrgb&w=800',
-  },
-  {
-    title: 'LogiTrack Map View',
-    category: 'Mobile App',
-    image: 'https://images.pexels.com/photos/1181298/pexels-photo-1181298.jpeg?auto=compress&cs=tinysrgb&w=800',
-  },
-  {
-    title: 'OpenCMS Editor',
-    category: 'Web App',
-    image: 'https://images.pexels.com/photos/196644/pexels-photo-196644.jpeg?auto=compress&cs=tinysrgb&w=800',
-  },
 ];
 
 // ─── Hooks ───────────────────────────────────────────────────────────────────
@@ -297,7 +216,7 @@ function useFetchCSV<T>(url: string, parser: (csv: string) => T[]) {
   return { data, loading, error };
 }
 
-// ─── Skill Level Badge Color ─────────────────────────────────────────────────
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function skillLevelColor(level: string): string {
   const l = level.toLowerCase();
@@ -349,10 +268,10 @@ function Navbar({ dark, toggleDark }: { dark: boolean; toggleDark: () => void })
       <nav className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
         <button onClick={() => handleNavClick('#home')} className="flex items-center gap-2 group">
           <span className="w-9 h-9 bg-green-500 text-white text-sm font-bold rounded-xl flex items-center justify-center group-hover:bg-green-600 transition-colors duration-200">
-            AR
+            IA
           </span>
           <span className="font-semibold text-gray-900 dark:text-white hidden sm:block text-sm">
-            Arif Rahman
+            Indrawan Al-Mutawakkil
           </span>
         </button>
 
@@ -441,23 +360,22 @@ function HeroSection() {
             className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-gray-900 dark:text-white leading-tight tracking-tight mb-4 animate-fade-in-up"
             style={{ animationDelay: '0.1s' }}
           >
-            Arif Rahman
-            <span className="block text-green-500">Kusuma</span>
+            Indrawan
+            <span className="block text-green-500">Al-Mutawakkil</span>
           </h1>
 
           <p
             className="text-lg sm:text-xl text-gray-500 dark:text-gray-400 font-medium mb-3 animate-fade-in-up"
             style={{ animationDelay: '0.2s' }}
           >
-            Senior Fullstack Engineer
+            Kepala Gudang Logistik
           </p>
 
           <p
             className="text-gray-500 dark:text-gray-400 leading-relaxed mb-8 max-w-lg mx-auto lg:mx-0 animate-fade-in-up"
             style={{ animationDelay: '0.3s' }}
           >
-            Membangun produk digital yang berdampak — dari arsitektur backend yang skalabel hingga
-            antarmuka yang intuitif. 8+ tahun pengalaman di startup dan perusahaan teknologi.
+            Sinkronisasi arus barang dan optimalisasi ruang gudang. 8+ tahun pengalaman mengelola logistik skala besar dengan fokus pada akurasi data, efisiensi waktu, dan kepemimpinan tim yang solid.
           </p>
 
           <div
@@ -465,7 +383,7 @@ function HeroSection() {
             style={{ animationDelay: '0.4s' }}
           >
             <a
-              href="https://wa.me/6281234567890?text=Halo%20Arif%2C%20saya%20tertarik%20untuk%20berdiskusi%20tentang%20peluang%20kerja%20sama."
+              href="https://wa.me/6281234567890?text=Halo%20Indrawan%2C%20saya%20tertarik%20untuk%20berdiskusi%20tentang%20peluang%20kerja%20sama."
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-green-500 hover:bg-green-600 text-white font-semibold rounded-xl transition-all duration-200 shadow-lg shadow-green-500/25 hover:shadow-green-500/40 hover:-translate-y-0.5"
@@ -474,10 +392,10 @@ function HeroSection() {
               Hubungi Saya
             </a>
             <button
-              onClick={() => document.getElementById('project')?.scrollIntoView({ behavior: 'smooth' })}
+              onClick={() => document.getElementById('pengalaman')?.scrollIntoView({ behavior: 'smooth' })}
               className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 font-semibold rounded-xl transition-all duration-200 hover:-translate-y-0.5"
             >
-              Lihat Project
+              Lihat Pengalaman
               <ArrowRight size={18} />
             </button>
           </div>
@@ -488,8 +406,8 @@ function HeroSection() {
           >
             {[
               { label: 'Tahun Exp.', value: '8+' },
-              { label: 'Project Selesai', value: '60+' },
-              { label: 'Klien Puas', value: '35+' },
+              { label: 'Gudang Dikelola', value: '5+' },
+              { label: 'Tim Dipimpin', value: '30+' },
             ].map(stat => (
               <div key={stat.label} className="text-center">
                 <div className="text-2xl font-bold text-gray-900 dark:text-white">{stat.value}</div>
@@ -508,7 +426,7 @@ function HeroSection() {
               )}
               <img
                 src="https://images.pexels.com/photos/2379004/pexels-photo-2379004.jpeg?auto=compress&cs=tinysrgb&w=800"
-                alt="Arif Rahman Kusuma"
+                alt="Indrawan Al-Mutawakkil"
                 className={`w-full h-full object-cover transition-opacity duration-500 ${imgLoaded ? 'opacity-100' : 'opacity-0'}`}
                 onLoad={() => setImgLoaded(true)}
               />
@@ -559,33 +477,33 @@ function BioSection({ skills, skillsLoading, skillsError }: {
             <div className="reveal">
               <span className="text-green-500 text-sm font-semibold uppercase tracking-widest">Tentang Saya</span>
               <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white mt-2 mb-6 leading-tight">
-                Membangun dengan presisi,<br />
-                <span className="text-green-500">berpikir dengan sistem</span>
+                Mengelola dengan presisi,<br />
+                <span className="text-green-500">memimpin dengan tanggung jawab</span>
               </h2>
             </div>
 
             <div className="reveal space-y-4 text-gray-600 dark:text-gray-400 leading-relaxed">
               <p>
-                Saya adalah seorang <span className="font-semibold text-gray-800 dark:text-gray-200">Senior Fullstack Engineer</span> dengan
-                lebih dari 8 tahun pengalaman membangun produk digital untuk startup fintech, e-commerce, dan SaaS B2B.
-                Passion saya terletak pada persimpangan antara rekayasa perangkat lunak yang solid dan desain produk yang berpusat pada pengguna.
+                Saya adalah seorang <span className="font-semibold text-gray-800 dark:text-gray-200">Kepala Gudang Logistik</span> dengan
+                lebih dari 8 tahun pengalaman mengelola operasional gudang skala besar di sektor logistik dan distribusi.
+                Passion saya terletak pada sinkronisasi arus barang yang akurat dan efisiensi tata kelola ruang penyimpanan.
               </p>
               <p>
-                Saya percaya bahwa kode yang baik adalah kode yang mudah dibaca, mudah diuji, dan mudah diubah.
-                Saya terbiasa bekerja dari ideasi hingga produksi — dari merancang skema database, membangun REST/GraphQL API,
-                hingga menghadirkan UI yang responsif dan aksesibel.
+                Saya percaya bahwa gudang yang well-organized adalah fondasi dari rantai pasok yang tangguh.
+                Saya terbiasa bekerja dari perencanaan kapasitas hingga eksekusi operasional — dari merancang sistem inventaris,
+                mengelola Warehouse Management System, hingga memimpin tim lapangan dengan standar K3 yang ketat.
               </p>
               <p>
-                Di luar kode, saya aktif berkontribusi pada komunitas developer lokal, menulis artikel teknis, dan sesekali
-                menjadi pembicara di konferensi teknologi.
+                Di luar operasional, saya aktif mengikuti pelatihan sertifikasi profesional, memperbarui standar SOP,
+                dan berbagi pengalaman manajemen gudang melalui komunitas logistik.
               </p>
             </div>
           </div>
 
           <div className="reveal grid grid-cols-2 gap-4">
             {[
-              { icon: Code2, label: 'Teknologi Favorit', value: 'Go, TypeScript, React' },
-              { icon: Briefcase, label: 'Tipe Kerja', value: 'Remote / Hybrid' },
+              { icon: Briefcase, label: 'Spesialisasi', value: 'Warehouse Management' },
+              { icon: Briefcase, label: 'Tipe Kerja', value: 'On-site / Hybrid' },
               { icon: MapPin, label: 'Lokasi', value: 'Jakarta, Indonesia' },
               { icon: User, label: 'Bahasa', value: 'Indonesia, English' },
             ].map(item => (
@@ -600,15 +518,15 @@ function BioSection({ skills, skillsLoading, skillsError }: {
             ))}
 
             {/* Dynamic Skills Section */}
-            <div className="col-span-2 bg-green-500 rounded-2xl p-5 text-white">
-              <div className="text-xs font-medium opacity-80 mb-3">Core Skills</div>
+            <div className="col-span-2 bg-gray-200 dark:bg-gray-800/60 border border-gray-300 dark:border-gray-700/60 rounded-2xl p-5">
+              <div className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-3">Core Skills</div>
               {skillsLoading ? (
-                <div className="flex items-center gap-2 text-sm opacity-80">
+                <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-500">
                   <Loader2 size={14} className="animate-spin" />
                   Memuat data...
                 </div>
               ) : skillsError ? (
-                <div className="flex items-center gap-2 text-sm opacity-80">
+                <div className="flex items-center gap-2 text-sm text-red-500">
                   <AlertCircle size={14} />
                   Gagal memuat skill
                 </div>
@@ -617,8 +535,7 @@ function BioSection({ skills, skillsLoading, skillsError }: {
                   {skills.map(skill => (
                     <span
                       key={skill.name}
-                      className={`px-2.5 py-1 bg-white/20 rounded-lg text-xs font-medium ${skillLevelColor(skill.level)}`}
-                      style={{ backgroundColor: undefined }}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-medium ${skillLevelColor(skill.level)}`}
                     >
                       <span className="inline-flex items-center gap-1.5">
                         {skill.name}
@@ -709,74 +626,18 @@ function ExperienceSection({ experiences, loading, error }: {
   );
 }
 
-function ProjectSection() {
-  const ref = useReveal();
-
-  return (
-    <section
-      id="project"
-      ref={ref as React.RefObject<HTMLElement>}
-      className="py-24 bg-gray-50 dark:bg-[#0d1117]"
-    >
-      <div className="max-w-6xl mx-auto px-4 sm:px-6">
-        <div className="text-center mb-16 reveal">
-          <span className="text-green-500 text-sm font-semibold uppercase tracking-widest">Karya</span>
-          <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white mt-2">
-            Project Unggulan
-          </h2>
-          <p className="text-gray-500 dark:text-gray-500 mt-3 max-w-xl mx-auto text-sm">
-            Kumpulan project yang telah saya kerjakan — dari side project hingga produk yang digunakan ribuan pengguna.
-          </p>
-        </div>
-
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {PROJECTS.map((project, i) => (
-            <div
-              key={i}
-              className="reveal group bg-white dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700/60 rounded-2xl p-6 hover:border-green-300 dark:hover:border-green-500/30 hover:shadow-lg hover:shadow-green-500/5 transition-all duration-300 hover:-translate-y-1 flex flex-col"
-            >
-              <div className="flex items-start justify-between mb-4">
-                <div className="w-10 h-10 bg-green-50 dark:bg-green-500/10 rounded-xl flex items-center justify-center">
-                  <FolderOpen size={18} className="text-green-500" />
-                </div>
-                <a
-                  href={project.link}
-                  className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 dark:text-gray-600 hover:text-green-500 dark:hover:text-green-400 hover:bg-green-50 dark:hover:bg-green-500/10 transition-all duration-200"
-                  aria-label={`Lihat ${project.title}`}
-                >
-                  <ExternalLink size={15} />
-                </a>
-              </div>
-
-              <h3 className="font-bold text-gray-900 dark:text-white mb-2">{project.title}</h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed flex-1 mb-4">{project.description}</p>
-
-              <div className="flex flex-wrap gap-1.5">
-                {project.tags.map(tag => (
-                  <span
-                    key={tag}
-                    className="px-2.5 py-1 bg-gray-100 dark:bg-gray-700/60 text-gray-600 dark:text-gray-400 text-xs font-medium rounded-lg"
-                  >
-                    {tag}
-                  </span>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function EducationSection() {
+function EducationSection({ education, loading, error }: {
+  education: EducationItem[];
+  loading: boolean;
+  error: string | null;
+}) {
   const ref = useReveal();
 
   return (
     <section
       id="pendidikan"
       ref={ref as React.RefObject<HTMLElement>}
-      className="py-24 bg-white dark:bg-[#0B0F19]"
+      className="py-24 bg-gray-50 dark:bg-[#0d1117]"
     >
       <div className="max-w-6xl mx-auto px-4 sm:px-6">
         <div className="text-center mb-16 reveal">
@@ -786,75 +647,52 @@ function EducationSection() {
           </h2>
         </div>
 
-        <div className="grid sm:grid-cols-2 gap-5">
-          {EDUCATION.map((edu, i) => (
-            <div
-              key={i}
-              className="reveal bg-gray-50 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700/60 rounded-2xl p-6 hover:border-green-300 dark:hover:border-green-500/30 transition-all duration-300 group"
-            >
-              <div className="flex items-start gap-4">
-                <div className="w-12 h-12 bg-green-50 dark:bg-green-500/10 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-green-500 transition-colors duration-300">
-                  <edu.icon size={20} className="text-green-500 group-hover:text-white transition-colors duration-300" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between gap-2 mb-1">
-                    <h3 className="font-bold text-gray-900 dark:text-white text-sm leading-snug">{edu.degree}</h3>
-                    <span className="text-xs text-gray-400 dark:text-gray-600 bg-gray-100 dark:bg-gray-700/60 px-2.5 py-1 rounded-full whitespace-nowrap flex-shrink-0">
-                      {edu.period}
-                    </span>
+        {loading ? (
+          <div className="flex items-center justify-center gap-2 py-16 text-gray-400 dark:text-gray-600">
+            <Loader2 size={20} className="animate-spin" />
+            <span className="text-sm">Memuat data...</span>
+          </div>
+        ) : error ? (
+          <div className="flex flex-col items-center justify-center gap-3 py-16 text-red-400">
+            <AlertCircle size={24} />
+            <span className="text-sm">Gagal memuat data pendidikan: {error}</span>
+          </div>
+        ) : (
+          <div className="grid sm:grid-cols-2 gap-5">
+            {education.map((edu, i) => {
+              const isEducation = edu.jenis.toLowerCase() === 'education';
+              const Icon = isEducation ? GraduationCap : Award;
+              const period = edu.tahunMulai === edu.tahunAkhir
+                ? edu.tahunMulai
+                : `${edu.tahunMulai} – ${edu.tahunAkhir}`;
+
+              return (
+                <div
+                  key={i}
+                  className="reveal bg-white dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700/60 rounded-2xl p-6 hover:border-green-300 dark:hover:border-green-500/30 transition-all duration-300 group"
+                >
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 bg-green-50 dark:bg-green-500/10 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-green-500 transition-colors duration-300">
+                      <Icon size={20} className="text-green-500 group-hover:text-white transition-colors duration-300" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2 mb-1">
+                        <h3 className="font-bold text-gray-900 dark:text-white text-sm leading-snug">{edu.jurusan}</h3>
+                        <span className="text-xs text-gray-400 dark:text-gray-600 bg-gray-100 dark:bg-gray-700/60 px-2.5 py-1 rounded-full whitespace-nowrap flex-shrink-0">
+                          {period}
+                        </span>
+                      </div>
+                      <p className="text-green-600 dark:text-green-400 text-xs font-semibold mb-2">{edu.instansi}</p>
+                      {edu.deskripsi && (
+                        <p className="text-gray-500 dark:text-gray-500 text-xs leading-relaxed">{edu.deskripsi}</p>
+                      )}
+                    </div>
                   </div>
-                  <p className="text-green-600 dark:text-green-400 text-xs font-semibold mb-2">{edu.institution}</p>
-                  <p className="text-gray-500 dark:text-gray-500 text-xs leading-relaxed">{edu.description}</p>
                 </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function PortfolioSection() {
-  const ref = useReveal();
-
-  return (
-    <section
-      id="portofolio"
-      ref={ref as React.RefObject<HTMLElement>}
-      className="py-24 bg-gray-50 dark:bg-[#0d1117]"
-    >
-      <div className="max-w-6xl mx-auto px-4 sm:px-6">
-        <div className="text-center mb-16 reveal">
-          <span className="text-green-500 text-sm font-semibold uppercase tracking-widest">Visual</span>
-          <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white mt-2">
-            Galeri Portofolio
-          </h2>
-          <p className="text-gray-500 dark:text-gray-500 mt-3 max-w-xl mx-auto text-sm">
-            Tampilan visual dari beberapa karya yang telah dipublikasikan.
-          </p>
-        </div>
-
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {PORTFOLIO_ITEMS.map((item, i) => (
-            <div
-              key={i}
-              className="reveal group relative overflow-hidden rounded-2xl aspect-video bg-gray-200 dark:bg-gray-800 cursor-pointer"
-            >
-              <img
-                src={item.image}
-                alt={item.title}
-                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                loading="lazy"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-              <div className="absolute bottom-0 left-0 right-0 p-5 translate-y-4 group-hover:translate-y-0 opacity-0 group-hover:opacity-100 transition-all duration-300">
-                <span className="text-green-400 text-xs font-semibold uppercase tracking-wider mb-1 block">{item.category}</span>
-                <h3 className="text-white font-bold text-sm">{item.title}</h3>
-              </div>
-            </div>
-          ))}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </section>
   );
@@ -869,15 +707,15 @@ function ContactSection() {
           Mari Berkolaborasi
         </h2>
         <p className="text-gray-500 dark:text-gray-400 max-w-xl mx-auto leading-relaxed mb-12">
-          Saya terbuka untuk peluang kerja sama, diskusi teknis, konsultasi proyek, atau sekadar berbagi ide.
+          Saya terbuka untuk peluang kerja sama, diskusi profesional, konsultasi operasional gudang, atau sekadar berbagi pengalaman.
           Jangan ragu untuk menghubungi saya melalui salah satu kanal berikut.
         </p>
 
         <div className="flex flex-wrap justify-center gap-4 mb-12">
           {[
-            { icon: Github, label: 'GitHub', handle: '@arifrahman', href: 'https://github.com', bg: 'bg-gray-900 hover:bg-gray-800 dark:bg-gray-800 dark:hover:bg-gray-700', text: 'text-white' },
-            { icon: Linkedin, label: 'LinkedIn', handle: 'Arif Rahman Kusuma', href: 'https://linkedin.com', bg: 'bg-blue-600 hover:bg-blue-700', text: 'text-white' },
-            { icon: Mail, label: 'Email', handle: 'arif@example.com', href: 'mailto:arif@example.com', bg: 'bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700', text: 'text-gray-800 dark:text-gray-200' },
+            { icon: Github, label: 'GitHub', handle: '@indrawan', href: 'https://github.com', bg: 'bg-gray-900 hover:bg-gray-800 dark:bg-gray-800 dark:hover:bg-gray-700', text: 'text-white' },
+            { icon: Linkedin, label: 'LinkedIn', handle: 'Indrawan Al-Mutawakkil', href: 'https://linkedin.com', bg: 'bg-blue-600 hover:bg-blue-700', text: 'text-white' },
+            { icon: Mail, label: 'Email', handle: 'indrawan@example.com', href: 'mailto:indrawan@example.com', bg: 'bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700', text: 'text-gray-800 dark:text-gray-200' },
           ].map(social => (
             <a
               key={social.label}
@@ -904,7 +742,7 @@ function ContactSection() {
             Cara paling cepat untuk memulai diskusi. Pesan sudah disiapkan — tinggal kirim!
           </p>
           <a
-            href="https://wa.me/6281234567890?text=Halo%20Arif%2C%20saya%20tertarik%20untuk%20berdiskusi%20tentang%20peluang%20kerja%20sama%20dan%20ingin%20mengenal%20lebih%20lanjut%20mengenai%20pengalaman%20Anda."
+            href="https://wa.me/6281234567890?text=Halo%20Indrawan%2C%20saya%20tertarik%20untuk%20berdiskusi%20tentang%20peluang%20kerja%20sama%20dan%20ingin%20mengenal%20lebih%20lanjut%20mengenai%20pengalaman%20Anda."
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-3 px-8 py-4 bg-green-500 hover:bg-green-600 text-white font-bold rounded-2xl transition-all duration-200 shadow-xl shadow-green-500/30 hover:shadow-green-500/50 hover:-translate-y-1 text-sm"
@@ -924,8 +762,8 @@ function Footer() {
     <footer className="py-8 border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-[#0B0F19]">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <span className="w-7 h-7 bg-green-500 text-white text-xs font-bold rounded-lg flex items-center justify-center">AR</span>
-          <span className="text-sm text-gray-500 dark:text-gray-500">Arif Rahman Kusuma</span>
+          <span className="w-7 h-7 bg-green-500 text-white text-xs font-bold rounded-lg flex items-center justify-center">IA</span>
+          <span className="text-sm text-gray-500 dark:text-gray-500">Indrawan Al-Mutawakkil</span>
         </div>
         <p className="text-xs text-gray-400 dark:text-gray-600">
           {new Date().getFullYear()} — Dirancang & dibangun dengan presisi
@@ -937,7 +775,7 @@ function Footer() {
           <a href="https://linkedin.com" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-blue-600 transition-colors duration-200">
             <Linkedin size={16} />
           </a>
-          <a href="mailto:arif@example.com" className="text-gray-400 hover:text-green-500 transition-colors duration-200">
+          <a href="mailto:indrawan@example.com" className="text-gray-400 hover:text-green-500 transition-colors duration-200">
             <Mail size={16} />
           </a>
         </div>
@@ -961,6 +799,11 @@ export default function App() {
     parseSkillCSV
   );
 
+  const { data: education, loading: eduLoading, error: eduError } = useFetchCSV<EducationItem>(
+    EDU_URL,
+    parseEducationCSV
+  );
+
   return (
     <div className="min-h-screen bg-white dark:bg-[#0B0F19] text-gray-900 dark:text-white transition-colors duration-300">
       <Navbar dark={dark} toggleDark={() => setDark(d => !d)} />
@@ -968,9 +811,7 @@ export default function App() {
         <HeroSection />
         <BioSection skills={skills} skillsLoading={skillsLoading} skillsError={skillsError} />
         <ExperienceSection experiences={experiences} loading={expLoading} error={expError} />
-        <ProjectSection />
-        <EducationSection />
-        <PortfolioSection />
+        <EducationSection education={education} loading={eduLoading} error={eduError} />
         <ContactSection />
       </main>
       <Footer />
