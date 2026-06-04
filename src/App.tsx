@@ -2,10 +2,121 @@ import { useState, useEffect, useRef } from 'react';
 import {
   Sun, Moon, Menu, X, Github, Linkedin, Mail, MessageCircle,
   MapPin, Calendar, ExternalLink, ArrowRight, Code2, Briefcase,
-  GraduationCap, User, FolderOpen, Phone, ChevronDown
+  GraduationCap, User, FolderOpen, ChevronDown, Loader2, AlertCircle
 } from 'lucide-react';
 
-// ─── Data ────────────────────────────────────────────────────────────────────
+// ─── Types ───────────────────────────────────────────────────────────────────
+
+interface Experience {
+  company: string;
+  role: string;
+  period: string;
+  achievements: string[];
+}
+
+interface Skill {
+  name: string;
+  level: string;
+  years: number;
+}
+
+// ─── CSV Parser ───────────────────────────────────────────────────────────────
+
+function parseCSV(text: string): string[][] {
+  const rows: string[][] = [];
+  let current = '';
+  let inQuotes = false;
+  const lines: string[] = [];
+
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (ch === '"') {
+      if (inQuotes && text[i + 1] === '"') {
+        current += '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if ((ch === '\n' || ch === '\r') && !inQuotes) {
+      if (current.trim() || lines.length > 0) {
+        lines.push(current.trim());
+        current = '';
+      }
+      if (ch === '\r' && text[i + 1] === '\n') i++;
+    } else {
+      current += ch;
+    }
+  }
+  if (current.trim()) lines.push(current.trim());
+
+  for (const line of lines) {
+    const cells: string[] = [];
+    let cell = '';
+    let inQ = false;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (c === '"') {
+        if (inQ && line[i + 1] === '"') {
+          cell += '"';
+          i++;
+        } else {
+          inQ = !inQ;
+        }
+      } else if (c === ',' && !inQ) {
+        cells.push(cell.trim());
+        cell = '';
+      } else {
+        cell += c;
+      }
+    }
+    cells.push(cell.trim());
+    rows.push(cells);
+  }
+
+  return rows;
+}
+
+function parseExperienceCSV(csv: string): Experience[] {
+  const rows = parseCSV(csv);
+  if (rows.length < 2) return [];
+
+  return rows.slice(1).map(row => {
+    const desc = (row[4] || '').replace(/"/g, '').trim();
+    const achievements = desc
+      .split(/\.\s+(?=[A-Z])/)
+      .map(s => s.trim())
+      .filter(Boolean)
+      .map(s => (s.endsWith('.') ? s : s + '.'));
+
+    return {
+      company: row[0] || '',
+      role: row[1] || '',
+      period: `${row[2] || ''} – ${row[3] || ''}`,
+      achievements,
+    };
+  });
+}
+
+function parseSkillCSV(csv: string): Skill[] {
+  const rows = parseCSV(csv);
+  if (rows.length < 2) return [];
+
+  return rows.slice(1).map(row => ({
+    name: row[0] || '',
+    level: row[1] || '',
+    years: parseInt(row[2] || '0', 10),
+  }));
+}
+
+// ─── Data URLs ───────────────────────────────────────────────────────────────
+
+const EXP_URL =
+  'https://docs.google.com/spreadsheets/d/e/2PACX-1vS4aX09mtmA80OArmrCncFwxAd3uFucB9yLoDbGjm-NfqxTi76YGqs1JQN5aI4Wl2DiECybcSw9Ozqj/pub?gid=0&single=true&output=csv';
+
+const SKILL_URL =
+  'https://docs.google.com/spreadsheets/d/e/2PACX-1vS4aX09mtmA80OArmrCncFwxAd3uFucB9yLoDbGjm-NfqxTi76YGqs1JQN5aI4Wl2DiECybcSw9Ozqj/pub?gid=500471126&single=true&output=csv';
+
+// ─── Nav ─────────────────────────────────────────────────────────────────────
 
 const NAV_LINKS = [
   { href: '#home', label: 'Home' },
@@ -17,40 +128,7 @@ const NAV_LINKS = [
   { href: '#kontak', label: 'Kontak' },
 ];
 
-const EXPERIENCES = [
-  {
-    company: 'TechCorp Indonesia',
-    role: 'Senior Fullstack Engineer',
-    period: '2022 – Sekarang',
-    location: 'Jakarta, Indonesia',
-    achievements: [
-      'Memimpin migrasi arsitektur monolith ke microservices berbasis Go + Kubernetes yang meningkatkan uptime dari 97% ke 99.9%.',
-      'Merancang dan mengimplementasikan real-time dashboard analytics menggunakan React, WebSocket, dan ClickHouse.',
-      'Mentoring 4 engineer junior dan memperkenalkan standar code review serta CI/CD pipeline otomatis.',
-    ],
-  },
-  {
-    company: 'Startup Fintech Nusantara',
-    role: 'Backend Engineer',
-    period: '2020 – 2022',
-    location: 'Bandung, Indonesia',
-    achievements: [
-      'Membangun payment gateway terintegrasi dengan 5 bank besar menggunakan Node.js dan PostgreSQL.',
-      'Mengoptimalkan query database yang menurunkan response time API dari 800ms ke 120ms.',
-      'Merancang sistem notifikasi real-time dengan RabbitMQ yang melayani lebih dari 50 ribu transaksi/hari.',
-    ],
-  },
-  {
-    company: 'Digital Agency Kreasi',
-    role: 'Frontend Developer',
-    period: '2018 – 2020',
-    location: 'Yogyakarta, Indonesia',
-    achievements: [
-      'Mengembangkan lebih dari 15 website klien korporat dengan React dan Vue.js.',
-      'Menerapkan aksesibilitas web (WCAG 2.1) dan optimasi performa yang meningkatkan Lighthouse score rata-rata 40 poin.',
-    ],
-  },
-];
+// ─── Static Data (non-CSV) ────────────────────────────────────────────────────
 
 const PROJECTS = [
   {
@@ -58,42 +136,36 @@ const PROJECTS = [
     description: 'Platform pembayaran terintegrasi multi-bank untuk UMKM Indonesia dengan dukungan QRIS, VA, dan transfer antar bank secara real-time.',
     tags: ['Go', 'PostgreSQL', 'React', 'Redis', 'Docker'],
     link: '#',
-    featured: true,
   },
   {
     title: 'CloudMonitor Pro',
     description: 'Dashboard observability untuk infrastruktur cloud dengan alerting otomatis, visualisasi metrik, dan laporan performa mingguan.',
     tags: ['TypeScript', 'Next.js', 'ClickHouse', 'Grafana'],
     link: '#',
-    featured: true,
   },
   {
     title: 'EduConnect Platform',
     description: 'LMS open-source untuk sekolah menengah dengan fitur kelas virtual, penilaian otomatis, dan analitik belajar siswa.',
     tags: ['React', 'Node.js', 'MongoDB', 'Socket.io'],
     link: '#',
-    featured: false,
   },
   {
     title: 'HarvestAI',
     description: 'Aplikasi prediksi hasil pertanian berbasis machine learning yang membantu petani mengoptimalkan waktu panen.',
     tags: ['Python', 'FastAPI', 'TensorFlow', 'React Native'],
     link: '#',
-    featured: false,
   },
   {
     title: 'LogiTrack',
     description: 'Sistem manajemen logistik real-time dengan fitur GPS tracking, rute optimal, dan laporan pengiriman otomatis.',
     tags: ['Flutter', 'Go', 'PostgreSQL', 'Google Maps API'],
     link: '#',
-    featured: false,
   },
   {
     title: 'OpenCMS',
     description: 'Content management system headless berbasis API-first dengan editor blok visual yang fleksibel dan plugin marketplace.',
     tags: ['TypeScript', 'Nest.js', 'GraphQL', 'Vue 3'],
     link: '#',
-    featured: false,
   },
 ];
 
@@ -211,6 +283,51 @@ function useReveal() {
   return ref;
 }
 
+function useFetchCSV<T>(url: string, parser: (csv: string) => T[]) {
+  const [data, setData] = useState<T[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function fetchCSV() {
+      try {
+        setLoading(true);
+        setError(null);
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const text = await res.text();
+        if (!cancelled) {
+          setData(parser(text));
+          setLoading(false);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : 'Gagal memuat data');
+          setLoading(false);
+        }
+      }
+    }
+
+    fetchCSV();
+    return () => { cancelled = true; };
+  }, [url, parser]);
+
+  return { data, loading, error };
+}
+
+// ─── Skill Level Badge Color ─────────────────────────────────────────────────
+
+function skillLevelColor(level: string): string {
+  const l = level.toLowerCase();
+  if (l === 'expert') return 'bg-green-500 text-white';
+  if (l === 'advanced') return 'bg-blue-500 text-white';
+  if (l === 'certified') return 'bg-amber-500 text-white';
+  if (l === 'intermediate') return 'bg-gray-500 text-white';
+  return 'bg-gray-400 text-white';
+}
+
 // ─── Components ──────────────────────────────────────────────────────────────
 
 function Navbar({ dark, toggleDark }: { dark: boolean; toggleDark: () => void }) {
@@ -250,11 +367,7 @@ function Navbar({ dark, toggleDark }: { dark: boolean; toggleDark: () => void })
       }`}
     >
       <nav className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-        {/* Logo */}
-        <button
-          onClick={() => handleNavClick('#home')}
-          className="flex items-center gap-2 group"
-        >
+        <button onClick={() => handleNavClick('#home')} className="flex items-center gap-2 group">
           <span className="w-9 h-9 bg-green-500 text-white text-sm font-bold rounded-xl flex items-center justify-center group-hover:bg-green-600 transition-colors duration-200">
             AR
           </span>
@@ -263,7 +376,6 @@ function Navbar({ dark, toggleDark }: { dark: boolean; toggleDark: () => void })
           </span>
         </button>
 
-        {/* Desktop Nav */}
         <div className="hidden lg:flex items-center gap-1">
           {NAV_LINKS.map(link => (
             <button
@@ -280,7 +392,6 @@ function Navbar({ dark, toggleDark }: { dark: boolean; toggleDark: () => void })
           ))}
         </div>
 
-        {/* Right controls */}
         <div className="flex items-center gap-2">
           <button
             onClick={toggleDark}
@@ -289,7 +400,6 @@ function Navbar({ dark, toggleDark }: { dark: boolean; toggleDark: () => void })
           >
             {dark ? <Sun size={18} /> : <Moon size={18} />}
           </button>
-
           <button
             onClick={() => setMenuOpen(!menuOpen)}
             className="lg:hidden w-9 h-9 rounded-xl flex items-center justify-center text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all duration-200"
@@ -300,7 +410,6 @@ function Navbar({ dark, toggleDark }: { dark: boolean; toggleDark: () => void })
         </div>
       </nav>
 
-      {/* Mobile menu */}
       <div
         className={`lg:hidden overflow-hidden transition-all duration-300 ease-in-out ${
           menuOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
@@ -334,14 +443,12 @@ function HeroSection() {
       id="home"
       className="min-h-screen flex items-center justify-center relative bg-white dark:bg-[#0B0F19] pt-16 overflow-hidden"
     >
-      {/* Subtle background elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-1/4 right-1/4 w-96 h-96 bg-green-500/5 dark:bg-green-500/8 rounded-full blur-3xl" />
         <div className="absolute bottom-1/4 left-1/4 w-64 h-64 bg-blue-500/5 dark:bg-blue-500/8 rounded-full blur-3xl" />
       </div>
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16 grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
-        {/* Text */}
         <div className="order-2 lg:order-1 text-center lg:text-left">
           <div className="animate-fade-in-up">
             <span className="inline-flex items-center gap-2 px-3 py-1.5 bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/20 text-green-700 dark:text-green-400 text-xs font-medium rounded-full mb-6">
@@ -412,7 +519,6 @@ function HeroSection() {
           </div>
         </div>
 
-        {/* Photo */}
         <div className="order-1 lg:order-2 flex justify-center lg:justify-end animate-fade-in" style={{ animationDelay: '0.2s' }}>
           <div className="relative">
             <div className="absolute inset-0 bg-gradient-to-br from-green-400 to-green-600 rounded-2xl blur-2xl opacity-20 scale-110" />
@@ -429,7 +535,6 @@ function HeroSection() {
               <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
             </div>
 
-            {/* Floating badge */}
             <div className="absolute -bottom-4 -left-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2.5 shadow-lg">
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
@@ -447,7 +552,6 @@ function HeroSection() {
         </div>
       </div>
 
-      {/* Scroll indicator */}
       <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 text-gray-400 dark:text-gray-600 animate-bounce">
         <span className="text-xs">Scroll</span>
         <ChevronDown size={16} />
@@ -456,7 +560,11 @@ function HeroSection() {
   );
 }
 
-function BioSection() {
+function BioSection({ skills, skillsLoading, skillsError }: {
+  skills: Skill[];
+  skillsLoading: boolean;
+  skillsError: string | null;
+}) {
   const ref = useReveal();
 
   return (
@@ -511,15 +619,35 @@ function BioSection() {
               </div>
             ))}
 
+            {/* Dynamic Skills Section */}
             <div className="col-span-2 bg-green-500 rounded-2xl p-5 text-white">
-              <div className="text-xs font-medium opacity-80 mb-1">Core Skills</div>
-              <div className="flex flex-wrap gap-2 mt-2">
-                {['Go', 'TypeScript', 'React', 'PostgreSQL', 'Redis', 'Docker', 'Kubernetes', 'AWS', 'GCP'].map(skill => (
-                  <span key={skill} className="px-2.5 py-1 bg-white/20 rounded-lg text-xs font-medium">
-                    {skill}
-                  </span>
-                ))}
-              </div>
+              <div className="text-xs font-medium opacity-80 mb-3">Core Skills</div>
+              {skillsLoading ? (
+                <div className="flex items-center gap-2 text-sm opacity-80">
+                  <Loader2 size={14} className="animate-spin" />
+                  Memuat data...
+                </div>
+              ) : skillsError ? (
+                <div className="flex items-center gap-2 text-sm opacity-80">
+                  <AlertCircle size={14} />
+                  Gagal memuat skill
+                </div>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {skills.map(skill => (
+                    <span
+                      key={skill.name}
+                      className={`px-2.5 py-1 bg-white/20 rounded-lg text-xs font-medium ${skillLevelColor(skill.level)}`}
+                      style={{ backgroundColor: undefined }}
+                    >
+                      <span className="inline-flex items-center gap-1.5">
+                        {skill.name}
+                        <span className="opacity-70 text-[10px]">{skill.years}th</span>
+                      </span>
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -528,7 +656,11 @@ function BioSection() {
   );
 }
 
-function ExperienceSection() {
+function ExperienceSection({ experiences, loading, error }: {
+  experiences: Experience[];
+  loading: boolean;
+  error: string | null;
+}) {
   const ref = useReveal();
 
   return (
@@ -545,47 +677,53 @@ function ExperienceSection() {
           </h2>
         </div>
 
-        <div className="relative">
-          {/* Timeline line */}
-          <div className="absolute left-4 sm:left-8 top-0 bottom-0 w-px bg-gray-200 dark:bg-gray-800" />
-
-          <div className="space-y-8">
-            {EXPERIENCES.map((exp, i) => (
-              <div key={i} className="reveal relative pl-14 sm:pl-20">
-                {/* Dot */}
-                <div className="absolute left-2.5 sm:left-6 top-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white dark:border-[#0B0F19] shadow-md z-10" />
-
-                <div className="bg-gray-50 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700/60 rounded-2xl p-6 hover:border-green-300 dark:hover:border-green-500/30 transition-all duration-300">
-                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-4">
-                    <div>
-                      <h3 className="font-bold text-gray-900 dark:text-white text-lg">{exp.role}</h3>
-                      <p className="text-green-600 dark:text-green-400 font-semibold text-sm">{exp.company}</p>
-                    </div>
-                    <div className="flex flex-col sm:items-end gap-1">
-                      <span className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-500 dark:text-gray-500 bg-gray-100 dark:bg-gray-700/60 px-3 py-1 rounded-full">
-                        <Calendar size={11} />
-                        {exp.period}
-                      </span>
-                      <span className="inline-flex items-center gap-1.5 text-xs text-gray-400 dark:text-gray-600">
-                        <MapPin size={11} />
-                        {exp.location}
-                      </span>
-                    </div>
-                  </div>
-
-                  <ul className="space-y-2">
-                    {exp.achievements.map((ach, j) => (
-                      <li key={j} className="flex items-start gap-2.5 text-sm text-gray-600 dark:text-gray-400">
-                        <span className="w-1.5 h-1.5 bg-green-500 rounded-full mt-1.5 flex-shrink-0" />
-                        {ach}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            ))}
+        {loading ? (
+          <div className="flex items-center justify-center gap-2 py-16 text-gray-400 dark:text-gray-600">
+            <Loader2 size={20} className="animate-spin" />
+            <span className="text-sm">Memuat data...</span>
           </div>
-        </div>
+        ) : error ? (
+          <div className="flex flex-col items-center justify-center gap-3 py-16 text-red-400">
+            <AlertCircle size={24} />
+            <span className="text-sm">Gagal memuat data pengalaman: {error}</span>
+          </div>
+        ) : (
+          <div className="relative">
+            <div className="absolute left-4 sm:left-8 top-0 bottom-0 w-px bg-gray-200 dark:bg-gray-800" />
+
+            <div className="space-y-8">
+              {experiences.map((exp, i) => (
+                <div key={i} className="reveal relative pl-14 sm:pl-20">
+                  <div className="absolute left-2.5 sm:left-6 top-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white dark:border-[#0B0F19] shadow-md z-10" />
+
+                  <div className="bg-gray-50 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700/60 rounded-2xl p-6 hover:border-green-300 dark:hover:border-green-500/30 transition-all duration-300">
+                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-4">
+                      <div>
+                        <h3 className="font-bold text-gray-900 dark:text-white text-lg">{exp.role}</h3>
+                        <p className="text-green-600 dark:text-green-400 font-semibold text-sm">{exp.company}</p>
+                      </div>
+                      <div className="flex flex-col sm:items-end gap-1">
+                        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-500 dark:text-gray-500 bg-gray-100 dark:bg-gray-700/60 px-3 py-1 rounded-full">
+                          <Calendar size={11} />
+                          {exp.period}
+                        </span>
+                      </div>
+                    </div>
+
+                    <ul className="space-y-2">
+                      {exp.achievements.map((ach, j) => (
+                        <li key={j} className="flex items-start gap-2.5 text-sm text-gray-600 dark:text-gray-400">
+                          <span className="w-1.5 h-1.5 bg-green-500 rounded-full mt-1.5 flex-shrink-0" />
+                          {ach}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </section>
   );
@@ -744,10 +882,7 @@ function PortfolioSection() {
 
 function ContactSection() {
   return (
-    <section
-      id="kontak"
-      className="py-24 bg-white dark:bg-[#0B0F19]"
-    >
+    <section id="kontak" className="py-24 bg-white dark:bg-[#0B0F19]">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 text-center">
         <span className="text-green-500 text-sm font-semibold uppercase tracking-widest">Hubungi</span>
         <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white mt-2 mb-4">
@@ -758,33 +893,11 @@ function ContactSection() {
           Jangan ragu untuk menghubungi saya melalui salah satu kanal berikut.
         </p>
 
-        {/* Social links */}
         <div className="flex flex-wrap justify-center gap-4 mb-12">
           {[
-            {
-              icon: Github,
-              label: 'GitHub',
-              handle: '@arifrahman',
-              href: 'https://github.com',
-              bg: 'bg-gray-900 hover:bg-gray-800 dark:bg-gray-800 dark:hover:bg-gray-700',
-              text: 'text-white',
-            },
-            {
-              icon: Linkedin,
-              label: 'LinkedIn',
-              handle: 'Arif Rahman Kusuma',
-              href: 'https://linkedin.com',
-              bg: 'bg-blue-600 hover:bg-blue-700',
-              text: 'text-white',
-            },
-            {
-              icon: Mail,
-              label: 'Email',
-              handle: 'arif@example.com',
-              href: 'mailto:arif@example.com',
-              bg: 'bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700',
-              text: 'text-gray-800 dark:text-gray-200',
-            },
+            { icon: Github, label: 'GitHub', handle: '@arifrahman', href: 'https://github.com', bg: 'bg-gray-900 hover:bg-gray-800 dark:bg-gray-800 dark:hover:bg-gray-700', text: 'text-white' },
+            { icon: Linkedin, label: 'LinkedIn', handle: 'Arif Rahman Kusuma', href: 'https://linkedin.com', bg: 'bg-blue-600 hover:bg-blue-700', text: 'text-white' },
+            { icon: Mail, label: 'Email', handle: 'arif@example.com', href: 'mailto:arif@example.com', bg: 'bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700', text: 'text-gray-800 dark:text-gray-200' },
           ].map(social => (
             <a
               key={social.label}
@@ -802,7 +915,6 @@ function ContactSection() {
           ))}
         </div>
 
-        {/* WA CTA */}
         <div className="bg-gray-50 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700/60 rounded-3xl p-8 sm:p-12">
           <div className="w-16 h-16 bg-green-50 dark:bg-green-500/10 rounded-2xl flex items-center justify-center mx-auto mb-5">
             <MessageCircle size={28} className="text-green-500" />
@@ -832,9 +944,7 @@ function Footer() {
     <footer className="py-8 border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-[#0B0F19]">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <span className="w-7 h-7 bg-green-500 text-white text-xs font-bold rounded-lg flex items-center justify-center">
-            AR
-          </span>
+          <span className="w-7 h-7 bg-green-500 text-white text-xs font-bold rounded-lg flex items-center justify-center">AR</span>
           <span className="text-sm text-gray-500 dark:text-gray-500">Arif Rahman Kusuma</span>
         </div>
         <p className="text-xs text-gray-400 dark:text-gray-600">
@@ -861,13 +971,23 @@ function Footer() {
 export default function App() {
   const [dark, setDark] = useDarkMode();
 
+  const { data: experiences, loading: expLoading, error: expError } = useFetchCSV<Experience>(
+    EXP_URL,
+    parseExperienceCSV
+  );
+
+  const { data: skills, loading: skillsLoading, error: skillsError } = useFetchCSV<Skill>(
+    SKILL_URL,
+    parseSkillCSV
+  );
+
   return (
     <div className="min-h-screen bg-white dark:bg-[#0B0F19] text-gray-900 dark:text-white transition-colors duration-300">
       <Navbar dark={dark} toggleDark={() => setDark(d => !d)} />
       <main>
         <HeroSection />
-        <BioSection />
-        <ExperienceSection />
+        <BioSection skills={skills} skillsLoading={skillsLoading} skillsError={skillsError} />
+        <ExperienceSection experiences={experiences} loading={expLoading} error={expError} />
         <ProjectSection />
         <EducationSection />
         <PortfolioSection />
