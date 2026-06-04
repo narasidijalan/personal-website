@@ -24,54 +24,34 @@ interface Skill {
 
 function parseCSV(text: string): string[][] {
   const rows: string[][] = [];
-  let current = '';
+  let currentRow: string[] = [];
+  let cell = '';
   let inQuotes = false;
-  const lines: string[] = [];
 
   for (let i = 0; i < text.length; i++) {
     const ch = text[i];
     if (ch === '"') {
       if (inQuotes && text[i + 1] === '"') {
-        current += '"';
+        cell += '"';
         i++;
       } else {
         inQuotes = !inQuotes;
       }
+    } else if (ch === ',' && !inQuotes) {
+      currentRow.push(cell.trim());
+      cell = '';
     } else if ((ch === '\n' || ch === '\r') && !inQuotes) {
-      if (current.trim() || lines.length > 0) {
-        lines.push(current.trim());
-        current = '';
-      }
+      currentRow.push(cell.trim());
+      if (currentRow.some(c => c.length > 0)) rows.push(currentRow);
+      currentRow = [];
+      cell = '';
       if (ch === '\r' && text[i + 1] === '\n') i++;
     } else {
-      current += ch;
+      cell += ch;
     }
   }
-  if (current.trim()) lines.push(current.trim());
-
-  for (const line of lines) {
-    const cells: string[] = [];
-    let cell = '';
-    let inQ = false;
-    for (let i = 0; i < line.length; i++) {
-      const c = line[i];
-      if (c === '"') {
-        if (inQ && line[i + 1] === '"') {
-          cell += '"';
-          i++;
-        } else {
-          inQ = !inQ;
-        }
-      } else if (c === ',' && !inQ) {
-        cells.push(cell.trim());
-        cell = '';
-      } else {
-        cell += c;
-      }
-    }
-    cells.push(cell.trim());
-    rows.push(cells);
-  }
+  currentRow.push(cell.trim());
+  if (currentRow.some(c => c.length > 0)) rows.push(currentRow);
 
   return rows;
 }
@@ -81,10 +61,10 @@ function parseExperienceCSV(csv: string): Experience[] {
   if (rows.length < 2) return [];
 
   return rows.slice(1).map(row => {
-    const desc = (row[4] || '').replace(/"/g, '').trim();
+    const desc = (row[4] || '').trim();
     const achievements = desc
-      .split(/\.\s+(?=[A-Z])/)
-      .map(s => s.trim())
+      .split(/\n{2,}/)
+      .map(s => s.replace(/\n/g, ' ').trim())
       .filter(Boolean)
       .map(s => (s.endsWith('.') ? s : s + '.'));
 
